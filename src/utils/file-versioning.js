@@ -19,7 +19,7 @@ function upgradeFileVersion(packageJsonFilePath, bumpType) {
   }
 
   contents.version = `${currentVersion.major}.${currentVersion.minor}.${currentVersion.patch}`;
-  fs.writeFileSync(packageJsonFilePath, contents, 'utf8');
+  fs.writeFileSync(packageJsonFilePath, JSON.stringify(contents, null, '  '), 'utf8');
 
   return contents.version;
 }
