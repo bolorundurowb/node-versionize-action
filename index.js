@@ -1,7 +1,7 @@
 const core = require('@actions/core');
 const github = require('@actions/github');
 
-const validBumpTypes = ['major', 'minor', 'revision'];
+const validBumpTypes = ['major', 'minor', 'patch'];
 
 try {
   const bumpType = core.getInput('bump-type');

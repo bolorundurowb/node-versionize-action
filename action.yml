@@ -4,7 +4,7 @@ inputs:
   bump-type:
     description: 'What part of the version to increment.'
     required: true
-    default: 'revision'
+    default: 'patch'
   traverse-dirs:
     description: 'Whether or not to search sub-folders for the package.json file.'
     required: false
