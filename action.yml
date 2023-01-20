@@ -2,9 +2,13 @@ name: 'Node Versionize'
 description: 'Bump the package.json version detail and create a git tag'
 inputs:
   bump-type:
-    description: 'What part of the version to '
+    description: 'What part of the version to increment.'
     required: true
     default: 'revision'
+  traverse-dirs:
+    description: 'Whether or not to search sub-folders for the package.json file.'
+    required: false
+    default: 'false'
 outputs:
   version:
     description: 'The new package version'
