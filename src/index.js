@@ -1,6 +1,7 @@
 const core = require('@actions/core');
 const github = require('@actions/github');
 
+const { tagRelease } = require('./utils/tagging');
 const { findPackageJsonFiles } = require('./utils/file-system');
 const { upgradeFileVersion } = require('./utils/file-versioning');
 
@@ -21,10 +22,17 @@ function run() {
     let tagVersion;
     const filePaths = findPackageJsonFiles(traverseDirs);
 
+    if (filePaths.size === 0) {
+      core.setFailed('No package.lock files found.');
+      return;
+    }
+
     for (const filePath of filePaths) {
       tagVersion = upgradeFileVersion(filePath, bumpType);
     }
 
+    tagRelease(tagVersion);
+    core.setOutput('version', tagVersion);
   } catch (e) {
     core.setFailed(e);
   }
