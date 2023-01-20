@@ -1,0 +1,13 @@
+name: 'Node Versionize'
+description: 'Bump the package.json version detail and create a git tag'
+inputs:
+  bump-type:
+    description: 'What part of the version to '
+    required: true
+    default: 'revision'
+outputs:
+  version:
+    description: 'The new package version'
+runs:
+  using: 'node16'
+  main: 'index.js'
