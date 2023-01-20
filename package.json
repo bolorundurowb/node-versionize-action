@@ -1,0 +1,20 @@
+{
+  "name": "node-versionize-action",
+  "version": "1.0.0",
+  "description": "A GitHub Action to  bump the version for a NodeJS project and tag it appropriately",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bolorundurowb/node-versionize-action.git"
+  },
+  "keywords": [],
+  "author": "Winner-Timothy Bolorunduro",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/bolorundurowb/node-versionize-action/issues"
+  },
+  "homepage": "https://github.com/bolorundurowb/node-versionize-action#readme"
+}
