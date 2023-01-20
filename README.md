@@ -1,2 +1,29 @@
 # node-versionize-action
-A GitHub Action to  bump the version for a NodeJS project and tag it appropriately
+
+This GitHub Action increments the version of the package lock json files in the repository, ommit the file changes and tags it as the latest version.
+
+## Inputs
+
+### `bump-type`
+
+**required** Which part of the version should be incremented. The options are `major`, `minor` or `patch`. Default `patch`.
+
+### `traverse-dirs`
+
+**optional** Determine whether sub-drectories should be searched for `package.json` files. Default `false`.
+
+## Outputs
+
+### `version`
+
+The updated version.
+
+
+## Example usage
+
+```yaml
+uses: actions/node-versionize-action@v1.0
+with:
+  bump-type: 'minor'
+  traverse-dirs: true
+```
