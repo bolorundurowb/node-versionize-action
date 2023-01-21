@@ -1,11 +1,12 @@
+const core = require('@actions/core');
 const simpleGit = require('simple-git');
 
-function tagRelease(version) {
+async function tagRelease(version) {
   const git = simpleGit();
-  git.commit(`(chore): release v${version}`);
-  git.addTag(version);
-  git.push();
-  git.pushTags();
+  await git.commit(`(chore): release v${version}`);
+  await git.addTag(version);
+  await git.push();
+  await git.pushTags();
 }
 
 module.exports = {
