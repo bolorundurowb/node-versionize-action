@@ -22,8 +22,11 @@ The updated version.
 ## Example usage
 
 ```yaml
-uses: actions/node-versionize-action@v1.0
-with:
-  bump-type: 'minor'
-  traverse-dirs: true
+- uses: actions/checkout@v2
+- uses: actions/node-versionize-action@v1.0
+  with:
+    user-name: "version-bot"
+    user-email: "sample@email.xyz"
+    bump-type: 'minor'
+    traverse-dirs: true
 ```
