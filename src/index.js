@@ -15,7 +15,6 @@ async function run() {
     return;
   }
 
-
   const rawTraverseDirs = core.getInput('traverse-dirs');
   const traverseDirs = rawTraverseDirs?.toLowerCase() === 'true';
 
