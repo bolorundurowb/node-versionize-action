@@ -6,6 +6,12 @@ inputs:
     description: 'What part of the version to increment.'
     required: true
     default: 'patch'
+  user-name:
+    description: 'The user name to be used for commits and the tag.'
+    required: true
+  user-email:
+    description: 'The user email to be used for commits and the tag.'
+    required: true
   github-token:
     description: 'The Github token.'
     required: false
