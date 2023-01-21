@@ -4,7 +4,7 @@
   "description": "A GitHub Action to bump the version for a NodeJS project and tag it appropriately",
   "main": "src/index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": " ncc build src/index.js --license licenses.txt"
   },
   "repository": {
     "type": "git",
@@ -22,5 +22,8 @@
     "@actions/github": "^5.1.1",
     "parse-version-string": "^1.0.1",
     "simple-git": "^3.16.0"
+  },
+  "devDependencies": {
+    "@vercel/ncc": "^0.36.0"
   }
 }
