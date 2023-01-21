@@ -15252,7 +15252,6 @@ const validBumpTypes = ['major', 'minor', 'patch'];
 function run() {
   try {
     core.startGroup('Validating user inputs');
-
     const bumpType = core.getInput('bump-type');
 
     if (!validBumpTypes.includes(bumpType)) {
@@ -15266,10 +15265,9 @@ function run() {
 
     core.info(`Bump type: ${bumpType}`);
     core.info(`Traverse dirs: ${traverseDirs}`);
-
     core.endGroup();
 
-    let tagVersion;
+    core.startGroup('Discovering package.json files.');
     const filePaths = findPackageJsonFiles(traverseDirs);
 
     if (filePaths.size === 0) {
@@ -15277,11 +15275,21 @@ function run() {
       return;
     }
 
+    core.info(`Files found: ${filePaths.size}`);
+    core.info(`File paths: ${JSON.stringify(filePaths)}`);
+    core.endGroup();
+
+    core.startGroup('Validating user inputs');
+    let tagVersion;
     for (const filePath of filePaths) {
       tagVersion = upgradeFileVersion(filePath, bumpType);
     }
 
     tagRelease(tagVersion);
+
+    core.info(`Version: ${tagVersion}`);
+    core.endGroup();
+
     core.setOutput('version', tagVersion);
   } catch (e) {
     core.setFailed(e);
