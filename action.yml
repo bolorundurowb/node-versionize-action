@@ -7,11 +7,13 @@ inputs:
     required: true
     default: 'patch'
   user-name:
-    description: 'The user name to be used for commits and the tag.'
-    required: true
+    description: 'The user name to be used for commits and the tag. Defaults to the HEAD commit authors name.'
+    required: false
+    default: ''
   user-email:
-    description: 'The user email to be used for commits and the tag.'
-    required: true
+    description: 'The user email to be used for commits and the tag. Defaults to the HEAD commit authors email.'
+    required: false
+    default: ''
   github-token:
     description: 'The Github token.'
     required: false

@@ -15028,16 +15028,15 @@ const simpleGit = __nccwpck_require__(9103);
 
 async function tagRelease(version) {
   const token = core.getInput('github-token');
-  // const userName = core.getInput('user-name');
-  // const userEmail = core.getInput('user-email');
   // const git = github.getOctokit(token);
   const payload = github.context.payload;
-  const userName = payload.pusher.name;
-  const userEmail = payload.pusher.email;
+  const userName = core.getInput('user-name') ?? payload.head_commit.author.name;
+  const userEmail = core.getInput('user-email') ?? payload.head_commit.author.email;
 
   const git = simpleGit();
   git.addConfig('user.name', userName);
   git.addConfig('user.email', userEmail);
+
   await git.add('.');
   await git.commit(`(chore): release v${version}`);
   await git.addTag(version);
