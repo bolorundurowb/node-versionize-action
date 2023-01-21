@@ -9,6 +9,9 @@ async function tagRelease(version) {
   const userName = core.getInput('user-name') ?? payload.head_commit.author.name;
   const userEmail = core.getInput('user-email') ?? payload.head_commit.author.email;
 
+  core.info(`Git user name: ${userName}`);
+  core.info(`Git user email: ${userEmail}`);
+
   const git = simpleGit();
   git.addConfig('user.name', userName);
   git.addConfig('user.email', userEmail);
