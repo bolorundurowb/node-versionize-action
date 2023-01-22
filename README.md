@@ -23,7 +23,7 @@ The updated version.
 
 ```yaml
 - uses: actions/checkout@v2
-- uses: actions/node-versionize-action@v1.0
+- uses: bolorundurowb/node-versionize-action@v1.0
   with:
     user-name: "version-bot"
     user-email: "sample@email.xyz"
