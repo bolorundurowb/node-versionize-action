@@ -1,10 +1,10 @@
 name: 'Node Versionize'
-description: 'Bump the package.json version detail and create a git tag'
+description: 'Bump the package.json version and create a git tag with conventional commits support'
 author: 'Winner-Timothy Bolorunduro'
 inputs:
   bump-type:
-    description: 'What part of the version to increment.'
-    required: true
+    description: 'What part of the version to increment. Options: major, minor, patch, or auto (detects from conventional commits).'
+    required: false
     default: 'patch'
   user-name:
     description: 'The user name to be used for commits and the tag. Defaults to the HEAD commit authors name.'
@@ -22,9 +22,43 @@ inputs:
     description: 'Whether or not to search sub-folders for the package.json file.'
     required: false
     default: 'false'
+  package-paths:
+    description: 'Comma-separated list of paths to package.json files or directories containing them. Overrides auto-detection.'
+    required: false
+    default: ''
+  use-workspaces:
+    description: 'Automatically detect and version all packages in npm/yarn workspaces.'
+    required: false
+    default: 'false'
+  generate-changelog:
+    description: 'Generate a CHANGELOG.md file based on conventional commits.'
+    required: false
+    default: 'false'
+  changelog-include-hash:
+    description: 'Include commit hashes in the generated changelog.'
+    required: false
+    default: 'false'
+  pre-release-hook:
+    description: 'Shell command to run before creating the release. Has access to VERSIONIZE_VERSION env var.'
+    required: false
+    default: ''
+  post-release-hook:
+    description: 'Shell command to run after creating the release. Has access to VERSIONIZE_VERSION env var.'
+    required: false
+    default: ''
+  tag-prefix:
+    description: 'Prefix for the git tag. Defaults to "v".'
+    required: false
+    default: 'v'
+  commit-message-format:
+    description: 'Custom format for the release commit message. Use {version} and {tag} as placeholders.'
+    required: false
+    default: ''
 outputs:
   version:
     description: 'The new package version'
+  tag:
+    description: 'The full tag name (e.g., v1.2.3)'
 runs:
-  using: 'node16'
+  using: 'node24'
   main: 'dist/index.js'

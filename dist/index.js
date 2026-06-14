@@ -14947,14 +14947,266 @@ function wrappy (fn, cb) {
 
 /***/ }),
 
-/***/ 7176:
+/***/ 5367:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 const fs = __nccwpck_require__(7147);
 const path = __nccwpck_require__(1017);
 
-function findPackageJsonFiles(traverseDirs) {
+const TYPE_LABELS = {
+  feat: 'Features',
+  fix: 'Bug Fixes',
+  perf: 'Performance Improvements',
+  refactor: 'Refactors',
+  docs: 'Documentation',
+  style: 'Styles',
+  test: 'Tests',
+  ci: 'CI/CD',
+  build: 'Build System',
+  chore: 'Chores',
+  revert: 'Reverts',
+};
+
+function formatCommitMessage(message) {
+  return message.replace(/^(feat|fix|chore|docs|style|refactor|perf|test|ci|build|revert)(\(.+\))?!?:\s*/, '');
+}
+
+function groupCommitsByType(commits) {
+  const grouped = {};
+
+  for (const commit of commits) {
+    const type = commit.type || 'chore';
+    if (!grouped[type]) {
+      grouped[type] = [];
+    }
+    grouped[type].push(commit);
+  }
+
+  return grouped;
+}
+
+function generateChangelogEntry(version, date, commits, includeHash = false) {
+  const grouped = groupCommitsByType(commits);
+  const sections = [];
+
+  const orderedTypes = ['feat', 'fix', 'perf', 'refactor', 'docs', 'style', 'test', 'ci', 'build', 'chore', 'revert'];
+
+  for (const type of orderedTypes) {
+    if (grouped[type] && grouped[type].length > 0) {
+      const label = TYPE_LABELS[type] || type;
+      const commitLines = grouped[type].map((commit) => {
+        const scope = commit.scope ? `**${commit.scope}:** ` : '';
+        const hash = includeHash ? ` (${commit.hash.substring(0, 7)})` : '';
+        const breaking = commit.breaking ? ' **BREAKING**' : '';
+        return `- ${scope}${formatCommitMessage(commit.message)}${hash}${breaking}`;
+      });
+
+      sections.push(`### ${label}\n\n${commitLines.join('\n')}`);
+    }
+  }
+
+  if (sections.length === 0) {
+    sections.push('### Other\n\n- No significant changes');
+  }
+
+  return `## [${version}] - ${date}\n\n${sections.join('\n\n')}`;
+}
+
+function readExistingChangelog(changelogPath) {
+  if (fs.existsSync(changelogPath)) {
+    return fs.readFileSync(changelogPath, 'utf8');
+  }
+  return null;
+}
+
+function writeChangelog(changelogPath, newEntry, existingContent, keepUnreleased = true) {
+  let content = '';
+
+  if (existingContent) {
+    if (keepUnreleased && existingContent.includes('## [Unreleased]')) {
+      const unreleasedIndex = existingContent.indexOf('## [Unreleased]');
+      const nextHeaderIndex = existingContent.indexOf('## [', unreleasedIndex + 1);
+
+      if (nextHeaderIndex > -1) {
+        const unreleasedSection = existingContent.substring(unreleasedIndex, nextHeaderIndex);
+        content = unreleasedSection + '\n' + newEntry + '\n\n' + existingContent.substring(nextHeaderIndex);
+      } else {
+        content = existingContent + '\n\n' + newEntry;
+      }
+    } else {
+      content = newEntry + '\n\n' + existingContent;
+    }
+  } else {
+    content = `# Changelog\n\nAll notable changes to this project will be documented in this file.\n\nThe format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),\nand this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).\n\n${newEntry}\n`;
+  }
+
+  fs.writeFileSync(changelogPath, content, 'utf8');
+  return content;
+}
+
+function generateAndWriteChangelog(version, commits, options = {}) {
+  const {
+    changelogPath = path.join(process.cwd(), 'CHANGELOG.md'),
+    includeHash = false,
+    keepUnreleased = true,
+    date = new Date().toISOString().split('T')[0],
+  } = options;
+
+  const existingContent = readExistingChangelog(changelogPath);
+  const newEntry = generateChangelogEntry(version, date, commits, includeHash);
+  return writeChangelog(changelogPath, newEntry, existingContent, keepUnreleased);
+}
+
+module.exports = {
+  generateChangelogEntry,
+  readExistingChangelog,
+  writeChangelog,
+  generateAndWriteChangelog,
+  groupCommitsByType,
+  formatCommitMessage,
+};
+
+
+/***/ }),
+
+/***/ 3659:
+/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
+
+const simpleGit = __nccwpck_require__(9103);
+
+const CONVENTIONAL_COMMIT_REGEX = /^(feat|fix|chore|docs|style|refactor|perf|test|ci|build|revert)(\(.+\))?!?:/;
+const BREAKING_CHANGE_REGEX = /^BREAKING CHANGE:/;
+const BREAKING_FOOTER_REGEX = /^[A-Z][\w-]*: /;
+
+async function getCommitsSinceLastTag() {
+  const git = simpleGit();
+  try {
+    const lastTag = await git.raw('describe', '--tags', '--abbrev=0');
+    const log = await git.log({ from: lastTag.trim(), to: 'HEAD' });
+    return log.all;
+  } catch {
+    const log = await git.log();
+    return log.all;
+  }
+}
+
+function parseConventionalCommits(commits) {
+  let hasBreakingChange = false;
+  let hasFeature = false;
+  let hasFix = false;
+  const parsedCommits = [];
+
+  for (const commit of commits) {
+    const match = commit.message.match(CONVENTIONAL_COMMIT_REGEX);
+    const isBreaking = BREAKING_CHANGE_REGEX.test(commit.message) ||
+      commit.message.includes('!') ||
+      commit.body && BREAKING_CHANGE_REGEX.test(commit.body);
+
+    if (isBreaking) {
+      hasBreakingChange = true;
+    }
+
+    if (match) {
+      const type = match[1];
+      const scope = match[2] ? match[2].slice(1, -1) : null;
+      const isBreakingSuffix = commit.message.includes('!:');
+
+      if (isBreakingSuffix) {
+        hasBreakingChange = true;
+      }
+
+      if (type === 'feat') {
+        hasFeature = true;
+      } else if (type === 'fix') {
+        hasFix = true;
+      }
+
+      parsedCommits.push({
+        type,
+        scope,
+        breaking: isBreaking || isBreakingSuffix,
+        message: commit.message,
+        hash: commit.hash,
+      });
+    }
+  }
+
+  return {
+    hasBreakingChange,
+    hasFeature,
+    hasFix,
+    commits: parsedCommits,
+  };
+}
+
+function determineBumpType(parsedResult, defaultBump = 'patch') {
+  if (parsedResult.hasBreakingChange) {
+    return 'major';
+  }
+  if (parsedResult.hasFeature) {
+    return 'minor';
+  }
+  if (parsedResult.hasFix) {
+    return 'patch';
+  }
+  return defaultBump;
+}
+
+async function detectBumpFromCommits(defaultBump = 'patch') {
+  const commits = await getCommitsSinceLastTag();
+  const parsed = parseConventionalCommits(commits);
+  const bumpType = determineBumpType(parsed, defaultBump);
+  return { bumpType, parsedCommits: parsed.commits, commitCount: commits.length };
+}
+
+module.exports = {
+  getCommitsSinceLastTag,
+  parseConventionalCommits,
+  determineBumpType,
+  detectBumpFromCommits,
+};
+
+
+/***/ }),
+
+/***/ 7176:
+/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
+
+const fs = __nccwpck_require__(7147);
+const path = __nccwpck_require__(1017);
+const core = __nccwpck_require__(2186);
+
+function findPackageJsonFiles(traverseDirs, packagePaths = '') {
   const currentDir = process.cwd();
+
+  if (packagePaths && packagePaths.trim() !== '') {
+    core.info('Using explicitly provided package.json paths');
+    const explicitPaths = packagePaths
+      .split(',')
+      .map((p) => p.trim())
+      .filter((p) => p.length > 0)
+      .map((p) => path.resolve(currentDir, p));
+
+    const validPaths = explicitPaths.filter((p) => {
+      if (fs.existsSync(p)) {
+        const stat = fs.statSync(p);
+        if (stat.isFile() && path.basename(p) === 'package.json') {
+          return true;
+        }
+        if (stat.isDirectory()) {
+          const pkgJson = path.join(p, 'package.json');
+          return fs.existsSync(pkgJson);
+        }
+      }
+      return false;
+    }).map((p) => {
+      const stat = fs.statSync(p);
+      return stat.isDirectory() ? path.join(p, 'package.json') : p;
+    });
+
+    return new Set(validPaths);
+  }
+
   return fromDirectory(currentDir, traverseDirs);
 }
 
@@ -14967,7 +15219,10 @@ function fromDirectory(dirPath, traverseDirs) {
     const stat = fs.lstatSync(filename);
 
     if (stat.isDirectory() && traverseDirs) {
-     foundPaths =  new Set([...foundPaths, ...(fromDirectory(filename))]);
+      const skipDirs = ['node_modules', '.git', 'dist', 'build', 'coverage'];
+      if (!skipDirs.includes(files[i])) {
+        foundPaths = new Set([...foundPaths, ...fromDirectory(filename, traverseDirs)]);
+      }
     } else if (files[i] === 'package.json') {
       foundPaths.add(filename);
     }
@@ -14976,8 +15231,100 @@ function fromDirectory(dirPath, traverseDirs) {
   return foundPaths;
 }
 
+function detectWorkspaces() {
+  const currentDir = process.cwd();
+  const rootPackageJson = __nccwpck_require__.ab + "package.json";
+
+  if (!fs.existsSync(__nccwpck_require__.ab + "package.json")) {
+    return [];
+  }
+
+  try {
+    const contents = JSON.parse(fs.readFileSync(__nccwpck_require__.ab + "package.json", 'utf8'));
+    const workspaces = contents.workspaces;
+
+    if (!workspaces) {
+      return [];
+    }
+
+    const workspaceDirs = [];
+    const patterns = Array.isArray(workspaces) ? workspaces : (workspaces.packages || []);
+
+    for (const pattern of patterns) {
+      const globbed = globPattern(currentDir, pattern);
+      workspaceDirs.push(...globbed);
+    }
+
+    return workspaceDirs;
+  } catch {
+    return [];
+  }
+}
+
+function globPattern(baseDir, pattern) {
+  const results = [];
+  const parts = pattern.split('/');
+
+  function scan(currentPath, partIndex) {
+    if (partIndex >= parts.length) {
+      const pkgJson = path.join(currentPath, 'package.json');
+      if (fs.existsSync(pkgJson)) {
+        results.push(pkgJson);
+      }
+      return;
+    }
+
+    const part = parts[partIndex];
+    if (part === '**') {
+      scanAllDirs(currentPath, partIndex);
+    } else if (part.includes('*')) {
+      const files = fs.readdirSync(currentPath);
+      for (const file of files) {
+        const fullPath = path.join(currentPath, file);
+        const stat = fs.statSync(fullPath);
+        if (stat.isDirectory() && matchesPattern(file, part)) {
+          scan(fullPath, partIndex + 1);
+        }
+      }
+    } else {
+      const fullPath = path.join(currentPath, part);
+      if (fs.existsSync(fullPath)) {
+        const stat = fs.statSync(fullPath);
+        if (stat.isDirectory()) {
+          scan(fullPath, partIndex + 1);
+        }
+      }
+    }
+  }
+
+  function scanAllDirs(currentPath, partIndex) {
+    scan(currentPath, partIndex + 1);
+
+    try {
+      const files = fs.readdirSync(currentPath);
+      for (const file of files) {
+        const fullPath = path.join(currentPath, file);
+        const stat = fs.statSync(fullPath);
+        if (stat.isDirectory() && !['node_modules', '.git', 'dist', 'build'].includes(file)) {
+          scanAllDirs(fullPath, partIndex);
+        }
+      }
+    } catch {
+    }
+  }
+
+  function matchesPattern(name, pattern) {
+    const regex = new RegExp('^' + pattern.replace(/\*/g, '.*') + '$');
+    return regex.test(name);
+  }
+
+  scan(baseDir, 0);
+  return results;
+}
+
 module.exports = {
-  findPackageJsonFiles
+  findPackageJsonFiles,
+  detectWorkspaces,
 };
 
 
@@ -15019,6 +15366,65 @@ module.exports = {
 
 /***/ }),
 
+/***/ 2230:
+/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
+
+const { execSync } = __nccwpck_require__(2081);
+const core = __nccwpck_require__(2186);
+
+async function runHook(hookScript, version, hookName) {
+  if (!hookScript || hookScript.trim() === '') {
+    return;
+  }
+
+  core.startGroup(`Running ${hookName} hook`);
+  core.info(`Executing: ${hookScript}`);
+
+  const env = {
+    ...process.env,
+    VERSIONIZE_VERSION: version,
+    VERSIONIZE_HOOK: hookName,
+  };
+
+  try {
+    const output = execSync(hookScript, {
+      encoding: 'utf8',
+      stdio: ['pipe', 'pipe', 'pipe'],
+      env,
+    });
+
+    if (output) {
+      core.info(output);
+    }
+
+    core.info(`${hookName} hook completed successfully`);
+  } catch (error) {
+    core.error(`${hookName} hook failed:`);
+    if (error.stdout) core.info(error.stdout);
+    if (error.stderr) core.error(error.stderr);
+    throw new Error(`${hookName} hook failed with exit code ${error.status}`);
+  } finally {
+    core.endGroup();
+  }
+}
+
+async function runPreReleaseHook(hookScript, version) {
+  await runHook(hookScript, version, 'pre-release');
+}
+
+async function runPostReleaseHook(hookScript, version) {
+  await runHook(hookScript, version, 'post-release');
+}
+
+module.exports = {
+  runHook,
+  runPreReleaseHook,
+  runPostReleaseHook,
+};
+
+
+/***/ }),
+
 /***/ 2320:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
@@ -15026,29 +15432,40 @@ const core = __nccwpck_require__(2186);
 const github = __nccwpck_require__(5438);
 const simpleGit = __nccwpck_require__(9103);
 
-async function tagRelease(version) {
+async function tagRelease(version, options = {}) {
+  const {
+    commitMessage,
+    tagName,
+    tagMessage,
+  } = options;
+
   const token = core.getInput('github-token');
-  // const git = github.getOctokit(token);
   const payload = github.context.payload;
-  const userName = core.getInput('user-name') ?? payload.head_commit.author.name;
-  const userEmail = core.getInput('user-email') ?? payload.head_commit.author.email;
+  const userName = core.getInput('user-name') || payload.head_commit?.author?.name || 'github-actions[bot]';
+  const userEmail = core.getInput('user-email') || payload.head_commit?.author?.email || 'github-actions[bot]@users.noreply.github.com';
 
   core.info(`Git user name: ${userName}`);
   core.info(`Git user email: ${userEmail}`);
 
   const git = simpleGit();
-  git.addConfig('user.name', userName);
-  git.addConfig('user.email', userEmail);
+  await git.addConfig('user.name', userName);
+  await git.addConfig('user.email', userEmail);
+
+  const finalCommitMessage = commitMessage || `chore(release): v${version}`;
+  const finalTagName = tagName || `v${version}`;
+  const finalTagMessage = tagMessage || `Release ${finalTagName}`;
 
   await git.add('.');
-  await git.commit(`(chore): release v${version}`);
-  await git.addTag(version);
+  await git.commit(finalCommitMessage);
+  await git.addTag(finalTagName, '-a', '-m', finalTagMessage);
   await git.push();
   await git.pushTags();
+
+  core.info(`Tagged release: ${finalTagName}`);
 }
 
 module.exports = {
-  tagRelease
+  tagRelease,
 };
 
 
@@ -15258,59 +15675,131 @@ var __webpack_exports__ = {};
 const core = __nccwpck_require__(2186);
 
 const { tagRelease } = __nccwpck_require__(2320);
-const { findPackageJsonFiles } = __nccwpck_require__(7176);
+const { findPackageJsonFiles, detectWorkspaces } = __nccwpck_require__(7176);
 const { upgradeFileVersion } = __nccwpck_require__(9423);
+const { detectBumpFromCommits } = __nccwpck_require__(3659);
+const { generateAndWriteChangelog } = __nccwpck_require__(5367);
+const { runPreReleaseHook, runPostReleaseHook } = __nccwpck_require__(2230);
 
-const validBumpTypes = ['major', 'minor', 'patch'];
+const validBumpTypes = ['major', 'minor', 'patch', 'auto'];
 
 async function run() {
-  core.startGroup('Validating user inputs');
-  const bumpType = core.getInput('bump-type');
+  core.startGroup('Configuration');
+  const bumpTypeInput = core.getInput('bump-type') || 'patch';
+  const traverseDirsInput = core.getInput('traverse-dirs');
+  const traverseDirs = traverseDirsInput?.toLowerCase() === 'true';
+  const packagePaths = core.getInput('package-paths');
+  const generateChangelog = core.getInput('generate-changelog')?.toLowerCase() === 'true';
+  const changelogIncludeHash = core.getInput('changelog-include-hash')?.toLowerCase() === 'true';
+  const preReleaseHook = core.getInput('pre-release-hook');
+  const postReleaseHook = core.getInput('post-release-hook');
+  const tagPrefix = core.getInput('tag-prefix') || 'v';
+  const commitMessageFormat = core.getInput('commit-message-format');
+  const useWorkspaces = core.getInput('use-workspaces')?.toLowerCase() === 'true';
+
+  core.info(`Bump type: ${bumpTypeInput}`);
+  core.info(`Traverse dirs: ${traverseDirs}`);
+  core.info(`Package paths: ${packagePaths || '(auto-detect)'}`);
+  core.info(`Generate changelog: ${generateChangelog}`);
+  core.info(`Use workspaces: ${useWorkspaces}`);
+  core.info(`Tag prefix: ${tagPrefix}`);
+  core.endGroup();
+
+  let bumpType = bumpTypeInput;
+
+  if (bumpType === 'auto') {
+    core.startGroup('Detecting bump type from conventional commits');
+    const detection = await detectBumpFromCommits('patch');
+    bumpType = detection.bumpType;
+    core.info(`Detected bump type: ${bumpType} (from ${detection.commitCount} commits)`);
+    core.info(`Parsed commits: ${detection.parsedCommits.length}`);
+    core.setOutput('parsed-commits', JSON.stringify(detection.parsedCommits));
+    core.endGroup();
+  }
 
   if (!validBumpTypes.includes(bumpType)) {
     core.setFailed(`'${bumpType}' is not a valid bump type. Valid types are: ${validBumpTypes}.`);
     return;
   }
 
-  const rawTraverseDirs = core.getInput('traverse-dirs');
-  const traverseDirs = rawTraverseDirs?.toLowerCase() === 'true';
+  core.startGroup('Discovering package.json files');
+  let filePaths;
 
-  core.info(`Bump type: ${bumpType}`);
-  core.info(`Traverse dirs: ${traverseDirs}`);
-  core.endGroup();
-
-  core.startGroup('Discovering package.json files.');
-  const filePaths = findPackageJsonFiles(traverseDirs);
+  if (useWorkspaces) {
+    const workspaceFiles = detectWorkspaces();
+    if (workspaceFiles.length > 0) {
+      core.info(`Found ${workspaceFiles.length} workspace packages`);
+      filePaths = new Set(workspaceFiles);
+    } else {
+      filePaths = findPackageJsonFiles(traverseDirs, packagePaths);
+    }
+  } else {
+    filePaths = findPackageJsonFiles(traverseDirs, packagePaths);
+  }
 
   if (filePaths.size === 0) {
-    core.setFailed('No package.lock files found.');
+    core.setFailed('No package.json files found.');
     return;
   }
 
   core.info(`Files found: ${filePaths.size}`);
-  core.info(`File paths: ${JSON.stringify(filePaths)}`);
+  core.info(`File paths: ${JSON.stringify([...filePaths])}`);
   core.endGroup();
 
-  core.startGroup('Validating user inputs');
   let tagVersion;
+  core.startGroup('Bumping versions');
   for (const filePath of filePaths) {
     tagVersion = upgradeFileVersion(filePath, bumpType);
+    core.info(`Updated ${filePath} to ${tagVersion}`);
   }
-
-  await tagRelease(tagVersion);
-
-  core.info(`Version: ${tagVersion}`);
   core.endGroup();
 
+  if (preReleaseHook) {
+    await runPreReleaseHook(preReleaseHook, tagVersion);
+  }
+
+  if (generateChangelog) {
+    core.startGroup('Generating changelog');
+    const { parsedCommits } = await detectBumpFromCommits('patch');
+    generateAndWriteChangelog(tagVersion, parsedCommits, {
+      includeHash: changelogIncludeHash,
+    });
+    core.info('Changelog generated successfully');
+    core.endGroup();
+  }
+
+  core.startGroup('Creating git tag and pushing');
+  const tagName = `${tagPrefix}${tagVersion}`;
+  let commitMessage;
+
+  if (commitMessageFormat) {
+    commitMessage = commitMessageFormat.replace(/\{version\}/g, tagVersion).replace(/\{tag\}/g, tagName);
+  } else {
+    commitMessage = `chore(release): ${tagName}`;
+  }
+
+  await tagRelease(tagVersion, {
+    commitMessage,
+    tagName,
+    tagMessage: `Release ${tagName}`,
+  });
+  core.endGroup();
+
+  if (postReleaseHook) {
+    await runPostReleaseHook(postReleaseHook, tagVersion);
+  }
+
   core.setOutput('version', tagVersion);
+  core.setOutput('tag', tagName);
 }
 
 run()
   .then(() => {
     core.info('Run completed successfully.');
-  }).catch((e) => {
-  core.setFailed(e);
-});
+  })
+  .catch((e) => {
+    core.setFailed(e);
+  });
 
 })();
 
