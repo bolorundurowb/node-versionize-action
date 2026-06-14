@@ -2,6 +2,8 @@
 
 A powerful GitHub Action that automatically bumps your `package.json` version based on semantic versioning, conventional commits, and creates git tags. Perfect for single packages, monorepos, and npm/yarn workspaces.
 
+This action is published on the [GitHub Marketplace](https://github.com/marketplace/actions/node-versionize).
+
 ## Features
 
 - **Semantic Versioning**: Automatic version bumping (`major`, `minor`, `patch`)
