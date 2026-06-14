@@ -60,5 +60,5 @@ outputs:
   tag:
     description: 'The full tag name (e.g., v1.2.3)'
 runs:
-  using: 'node20'
+  using: 'node24'
   main: 'dist/index.js'
